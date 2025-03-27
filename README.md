@@ -41,7 +41,7 @@ A secure and modern user registration/login system built using Vanilla PHP (no f
 1. Get Clone 
 
 ```bash
-git clone https://github.com/Saurabh2511s/user-auth-system.git
+git clone https://github.com/your-username/user-auth-system.git
 
 
 2. Create the Database

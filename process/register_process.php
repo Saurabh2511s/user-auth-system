@@ -1,23 +1,22 @@
 <?php
 session_start();
-
 require_once '../config/db.php';
 require_once '../helpers/functions.php';
 require_once '../helpers/logger.php';
 
-
 try {
-    // Sanitize Inputs
+    // Sanitize and fetch form inputs
     $name     = sanitizeInput($_POST['name'] ?? '');
     $email    = sanitizeInput($_POST['email'] ?? '');
-
-    
     $password = $_POST['password'] ?? '';
     $confirm  = $_POST['confirm_password'] ?? '';
 
-    // Backend Validation
-    if (empty($name) || empty($email) || empty($password) || empty($confirm)) {
-        $_SESSION['register_error'] = "All required fields must be filled.";
+    // Strong password regex
+    $pattern = "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?#&]).{8,}$/";
+
+    // Backend validations
+    if (!$name || !$email || !$password || !$confirm) {
+        $_SESSION['register_error'] = "All fields are required.";
         redirect('../views/register.php');
     }
 
@@ -26,8 +25,8 @@ try {
         redirect('../views/register.php');
     }
 
-    if (strlen($password) < 6) {
-        $_SESSION['register_error'] = "Password must be at least 6 characters.";
+    if (!preg_match($pattern, $password)) {
+        $_SESSION['register_error'] = "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.";
         redirect('../views/register.php');
     }
 
@@ -35,15 +34,16 @@ try {
         $_SESSION['register_error'] = "Passwords do not match.";
         redirect('../views/register.php');
     }
-    // Check if email exists
+
+    // Check if email already exists
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
-        $_SESSION['register_error'] = "Email already exists.";
+        $_SESSION['register_error'] = "Email already registered.";
         redirect('../views/register.php');
     }
 
-    // Handle File Upload
+    // Handle file upload
     $uploadedFilePath = null;
     if (!empty($_FILES['user_file']['name'])) {
         $fileTmp  = $_FILES['user_file']['tmp_name'];
@@ -66,28 +66,28 @@ try {
         $destination = '../public/uploads/' . $uniqueName;
 
         if (!move_uploaded_file($fileTmp, $destination)) {
-            $_SESSION['register_error'] = "File upload failed.";
-            logMessage("File upload failed for user: $email");
+            $_SESSION['register_error'] = "Failed to upload file.";
+            logMessage("File upload failed for $email.");
             redirect('../views/register.php');
         }
 
         $uploadedFilePath = $uniqueName;
     }
 
-    // Hash Password
+    // Hash password
     $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 
-    // Insert User
+    // Insert user into database
     $insert = $pdo->prepare("INSERT INTO users (name, email, password, file_path) VALUES (?, ?, ?, ?)");
     $insert->execute([$name, $email, $hashedPassword, $uploadedFilePath]);
 
-    logMessage("New user registered: $email");
+    logMessage("User registered: $email");
 
     $_SESSION['register_success'] = "Registration successful. Please login.";
     redirect('../views/login.php');
 
 } catch (Exception $e) {
-    logMessage("Error in register_process: " . $e->getMessage());
-    $_SESSION['register_error'] = "Unexpected error occurred. Try again.";
+    logMessage("Registration error for $email: " . $e->getMessage());
+    $_SESSION['register_error'] = "Unexpected error occurred. Please try again.";
     redirect('../views/register.php');
 }

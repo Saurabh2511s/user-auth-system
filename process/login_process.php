@@ -5,26 +5,34 @@ require_once '../helpers/functions.php';
 require_once '../helpers/logger.php';
 
 try {
+    // Sanitize form inputs
     $email = sanitizeInput($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    // Backend validation
+    // Basic validation
     if (empty($email) || empty($password)) {
-        $_SESSION['login_error'] = "Please fill in all fields.";
+        $_SESSION['login_error'] = "Both email and password are required.";
         redirect('../views/login.php');
     }
 
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['login_error'] = "Invalid email format.";
+        redirect('../views/login.php');
+    }
+
+    // Fetch user by email
     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
+    // Verify user and password
     if (!$user || !password_verify($password, $user['password'])) {
-        logMessage("Failed login attempt for email: $email");
+        logMessage("Failed login attempt for $email");
         $_SESSION['login_error'] = "Invalid email or password.";
         redirect('../views/login.php');
     }
 
-    // Success - Set session
+    // Set session
     $_SESSION['user'] = [
         'id' => $user['id'],
         'name' => $user['name'],
@@ -34,10 +42,11 @@ try {
 
     logMessage("User logged in: $email");
 
+    // Redirect to dashboard
     redirect('../views/dashboard.php');
 
 } catch (Exception $e) {
-    logMessage("Login Error: " . $e->getMessage());
-    $_SESSION['login_error'] = "Unexpected error. Please try again.";
+    logMessage("Login error for $email: " . $e->getMessage());
+    $_SESSION['login_error'] = "Unexpected error occurred. Please try again.";
     redirect('../views/login.php');
 }

@@ -1,6 +1,5 @@
+<!-- helpers/logger.php -->
 <?php
-// helpers/logger.php
-
 function logMessage($message) {
     $logFile = __DIR__ . '/../logs/app.log';
     $date = date('Y-m-d H:i:s');
